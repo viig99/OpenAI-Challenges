@@ -1,6 +1,6 @@
 from keras.models import Sequential
 from keras.layers import CuDNNLSTM, Dense, Masking, LSTM
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, TensorBoard
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 
@@ -37,25 +37,26 @@ def parity_generator_random_length(dimensions, batch_size=1000):
 		y_batch = np.array(y_batch).reshape(-1,1)
 		yield [x_batch, y_batch]
 
+
 if __name__ == '__main__':
     dimensions = 50
     model = get_lstm(dimensions)
-    training_gen = parity_generator_random_length(dimensions)
-    validity_gen = parity_generator_random_length(dimensions)
+    training_gen = parity_generator(dimensions)
+    validity_data = next(parity_generator(dimensions, 1000))
     model.fit_generator(
         generator=training_gen,
         steps_per_epoch=100,
         epochs=20,
         verbose=1,
-        validation_data=validity_gen,
-        validation_steps=10,
+        validation_data=validity_data,
         max_q_size=10,
         workers=3,
         callbacks=[
             EarlyStopping(monitor='val_loss', min_delta=0.0001,
-                          patience=10, verbose=1, mode='auto'),
-            ReduceLROnPlateau(monitor='val_loss', patience=5,
-                              verbose=1, min_lr=0.0001, epsilon=0.0001, factor=0.1)
+                          patience=20, verbose=1, mode='auto'),
+            ReduceLROnPlateau(monitor='val_loss', patience=10,
+                              verbose=1, min_lr=0.0001, epsilon=0.0001, factor=0.1),
+            TensorBoard(log_dir='./logs/parity_generator', histogram_freq=1, write_grads=True)
         ])
 
     x_batch = np.round(np.random.random_sample((10, dimensions, 1)))
